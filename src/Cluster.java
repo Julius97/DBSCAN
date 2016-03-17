@@ -12,4 +12,8 @@ public class Cluster {
 		return points;
 	}
 	
+	public void clearCluster(){
+		points.clear();
+	}
+	
 }

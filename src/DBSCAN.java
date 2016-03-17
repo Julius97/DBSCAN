@@ -113,4 +113,12 @@ public class DBSCAN {
 		return noisePoints;
 	}
 	
+	public void clearClusters(){
+		for(Cluster c : clusters){
+			c.clearCluster();
+		}
+		noisePoints.clear();
+		clusters.clear();
+	}
+	
 }

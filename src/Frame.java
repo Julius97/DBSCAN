@@ -24,6 +24,8 @@ public class Frame extends JFrame {
 	private JButton pointbutton;
 	private JButton clearlabelbutton;
 	private JButton startscanbutton;
+	private JButton createNoiseButton;
+	private JButton editClusterButton;
 	
 	private ArrayList<Point> points = new ArrayList<Point>();
 	
@@ -31,6 +33,7 @@ public class Frame extends JFrame {
 	private int randOffsetX = 0;
 	private int randOffsetY = 0;
 	private int maxOffsetSpreadRadius = 50;
+	private int noiseAmount = 20;
 	
 	private boolean clustered = false;
 	
@@ -77,8 +80,20 @@ public class Frame extends JFrame {
 			clearlabelbutton.addActionListener(new ClearPointListButtonListener());
 			add(clearlabelbutton);
 			
+			createNoiseButton = new JButton("Noise einfügen");
+			createNoiseButton.setBounds(220,100,130,40);
+			createNoiseButton.setMargin(new Insets(1,1,1,1));
+			createNoiseButton.addActionListener(new CreateNoiseButtonListener());
+			add(createNoiseButton);
+			
+			editClusterButton = new JButton("Ergänzen");
+			editClusterButton.setBounds(20,160,130,40);
+			editClusterButton.setMargin(new Insets(1,1,1,1));
+			editClusterButton.addActionListener(new EditClusterButtonListener());
+			add(editClusterButton);
+			
 			startscanbutton = new JButton("Starte DBSCAN");
-			startscanbutton.setBounds(20,160,150,40);
+			startscanbutton.setBounds(220,160,130,40);
 			startscanbutton.setMargin(new Insets(1,1,1,1));
 			startscanbutton.addActionListener(new StartScanButtonListener());
 			add(startscanbutton);
@@ -139,10 +154,21 @@ public class Frame extends JFrame {
 	private class ClearPointListButtonListener implements ActionListener{
 
 		@Override
-		public void actionPerformed(ActionEvent e) {
-			//pointsPerClick = Integer.parseInt(pointtextfield.getText());
-			
+		public void actionPerformed(ActionEvent e) {			
 			points.clear();
+			dbscan.clearClusters();
+			clustered = false;
+			repaintScreen();
+		}
+		
+	}
+	
+	private class EditClusterButtonListener implements ActionListener{
+
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			clustered = false;
+			dbscan.clearClusters();
 			repaintScreen();
 		}
 		
@@ -154,6 +180,24 @@ public class Frame extends JFrame {
 		public void actionPerformed(ActionEvent e) {
 			dbscan.updatePointList(points);
 			clustered = true;
+			repaintScreen();
+		}
+		
+	}
+	
+	private class CreateNoiseButtonListener implements ActionListener{
+
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			for(int i=0; i<noiseAmount;i++){
+				Random randPos = new Random();
+				int randXpos = 430 + randPos.nextInt(550);
+				int randYpos = 30 + randPos.nextInt(550);
+				Point p = new Point(randXpos,randYpos);
+				points.add(p);
+			}
+			clustered = false;
+			dbscan.clearClusters();
 			repaintScreen();
 		}
 		
