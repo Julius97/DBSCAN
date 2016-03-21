@@ -5,14 +5,22 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Random;
+import java.util.Map.Entry;
 
+import javax.print.attribute.standard.JobName;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
-
 
 public class Frame extends JFrame {
 	
@@ -20,22 +28,33 @@ public class Frame extends JFrame {
 	private DBSCAN dbscan;
 	
 	private JLabel pointlabel;
+	private JLabel epsilonlabel;
 	private JTextField pointtextfield;
+	private JTextField epsilontextfield;
 	private JButton pointbutton;
 	private JButton clearlabelbutton;
 	private JButton startscanbutton;
 	private JButton createNoiseButton;
 	private JButton editClusterButton;
+	private JButton adaptEpsilonButon;
 	
 	private ArrayList<Point> points = new ArrayList<Point>();
+	
+	private double[] orderedPoints;
 	
 	private int pointsPerClick = 100;
 	private int randOffsetX = 0;
 	private int randOffsetY = 0;
 	private int maxOffsetSpreadRadius = 50;
-	private int noiseAmount = 20;
+	private int noiseAmount = 50;
+	private int coordinateScaleFactor = 2;
+	private int pointShiftFactor = 5;
+	private int mouseYPos = 550;
 	
 	private boolean clustered = false;
+	private boolean detectEpsilon = false;
+	
+	private double shownEpsilon = 0;
 	
 	public Frame(DBSCAN dbscan){
 		super("DBSCAN Algorithm");
@@ -47,10 +66,54 @@ public class Frame extends JFrame {
 		add(screen);
 		
 		screen.addMouseListener(new MouseHandler());
+		screen.addMouseMotionListener(new MouseMotionHandler());
 	}
 	
 	public void repaintScreen(){
 		screen.repaint();
+	}
+	
+	private double[] epsilonOrderedPoints(){
+		HashMap<Point,Double> unorderedPoints = new HashMap<Point,Double>();
+		
+		for(int i = 0; i < points.size(); i++){
+			unorderedPoints.put(points.get(i), dbscan.getMinPtsNearestNeighbour(points.get(i)).getValue());
+			dbscan.clearMinPtsNearestNeighboursList();
+		}
+		
+		int index = 0;
+		double []orderedPoints = new double[unorderedPoints.size()];
+		for(Map.Entry<Point, Double> elem : unorderedPoints.entrySet()){
+			orderedPoints[index] = elem.getValue();
+			index ++;
+		}
+		
+		Arrays.sort(orderedPoints);
+		
+		int i = 0;
+        int j = orderedPoints.length - 1;
+        double tmp;
+        while (j > i) {
+            tmp = orderedPoints[j];
+            orderedPoints[j] = orderedPoints[i];
+            orderedPoints[i] = tmp;
+            j--;
+            i++;
+        }
+        
+        //for(int k=0;k<orderedPoints.length;k++)System.out.println(orderedPoints[k]);
+		
+		return orderedPoints;
+	}
+	
+	private Entry<Point, Double> getFarestPoint(HashMap<Point,Double> pointList, Map.Entry<Point, Double> randomElement){
+		Entry<Point, Double> farestElement = randomElement;
+		for(Entry<Point, Double> l : pointList.entrySet()){
+			if(l.getValue() > farestElement.getValue())
+				farestElement = l;
+		}
+		
+		return farestElement;
 	}
 	
 	private class Screen extends JLabel{
@@ -59,6 +122,7 @@ public class Frame extends JFrame {
 			super.paintComponent(g);
 			g.setColor(Color.BLACK);
 			g.drawLine(400, 0, 400, 600);
+			g.drawLine(1000, 0, 1000, 600);
 			
 			pointlabel = new JLabel("Punkte pro Klick");
 			pointlabel.setBounds(20,5,150,20);
@@ -97,6 +161,42 @@ public class Frame extends JFrame {
 			startscanbutton.setMargin(new Insets(1,1,1,1));
 			startscanbutton.addActionListener(new StartScanButtonListener());
 			add(startscanbutton);
+				
+			epsilonlabel = new JLabel("Epsilon adaptieren");
+			epsilonlabel.setBounds(20,220,150,20);
+			add(epsilonlabel);
+			
+			epsilontextfield = new JTextField();
+			epsilontextfield.setBounds(20,245,200,40);
+			add(epsilontextfield);
+			
+			adaptEpsilonButon = new JButton("Übernehmen");
+			adaptEpsilonButon.setBounds(250,245,100,40);
+			adaptEpsilonButon.setMargin(new Insets(1,1,1,1));
+			adaptEpsilonButon.addActionListener(new AdaptEpsilonButtonListener());
+			add(adaptEpsilonButon);
+			
+			g.drawLine(1045, 550, 1780, 550);
+			g.drawLine(1045, 30, 1045, 550);
+			g.drawLine(1045, mouseYPos, 1780, mouseYPos);
+			g.drawString(shownEpsilon+"", 1750, mouseYPos-10);
+			int c = 0;
+			for(int i = 550; i > 20; i=i-(coordinateScaleFactor * pointShiftFactor)){
+				if((c*coordinateScaleFactor)%10 == 0){
+					g.drawLine(1030, i, 1045, i);
+					g.drawString(""+c*coordinateScaleFactor, 1005, i+5);
+				}
+				else{
+					g.drawLine(1035, i, 1045, i);
+				}
+					
+				c++;
+			}
+			if(detectEpsilon){
+				for(int i=0;i<orderedPoints.length;i++){
+					g.fillOval(1050+i+1, 550-(int)(orderedPoints[i] * pointShiftFactor)-1, 2, 2);
+				}
+			}
 			
 			if(!clustered){
 				for(int i=0;i<points.size();i++){
@@ -151,6 +251,19 @@ public class Frame extends JFrame {
 		}
 	}
 	
+	private class AdaptEpsilonButtonListener implements ActionListener{
+
+		@Override
+		public void actionPerformed(ActionEvent arg0) {
+			dbscan.clearClusters();
+			dbscan.updatePointList(points);
+			orderedPoints = epsilonOrderedPoints();
+			detectEpsilon = true;
+			repaintScreen();
+		}
+		
+	}
+	
 	private class ClearPointListButtonListener implements ActionListener{
 
 		@Override
@@ -178,6 +291,9 @@ public class Frame extends JFrame {
 
 		@Override
 		public void actionPerformed(ActionEvent e) {
+			clustered = false;
+			repaintScreen();
+			dbscan.clearClusters();
 			dbscan.updatePointList(points);
 			clustered = true;
 			repaintScreen();
@@ -199,6 +315,24 @@ public class Frame extends JFrame {
 			clustered = false;
 			dbscan.clearClusters();
 			repaintScreen();
+		}
+		
+	}
+	
+	private class MouseMotionHandler implements MouseMotionListener{
+
+		@Override
+		public void mouseDragged(MouseEvent e) {
+			
+		}
+
+		@Override
+		public void mouseMoved(MouseEvent e) {
+			if(e.getX()>=1050 && e.getX()<=1780 && e.getY() >= 30 && e.getY() <= 550){
+				mouseYPos = e.getY();
+				shownEpsilon = (double)((double)(550.0 - (double)mouseYPos) / (double)pointShiftFactor);
+				repaintScreen();
+			}
 		}
 		
 	}

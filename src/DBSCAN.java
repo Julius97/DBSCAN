@@ -1,5 +1,9 @@
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 public class DBSCAN {
@@ -18,6 +22,8 @@ public class DBSCAN {
 	}
 	
 	private HashMap<Point,PointStatus> visited = new HashMap<Point,PointStatus>();
+	private HashMap<Point,Double> minPtsNearestNeighbours = new HashMap<Point,Double>();
+	private HashMap<Point,Double> minPtsNearestNeighbours2 = new HashMap<Point,Double>();
 	
 	public DBSCAN(double epsilon, int minPts){
 		this.epsilon = epsilon;
@@ -119,6 +125,49 @@ public class DBSCAN {
 		}
 		noisePoints.clear();
 		clusters.clear();
+	}
+	
+	public Entry<Point, Double> getMinPtsNearestNeighbour(Point p){
+		outerLoop:for(Point x : points){
+			minPtsNearestNeighbours = minPtsNearestNeighbours2;
+			if(!x.equals(p)){
+				if(minPtsNearestNeighbours.size() < minPts){
+					minPtsNearestNeighbours2.put(x,Math.sqrt((double)((double)Math.pow(Math.abs(x.getX()-p.getX()), 2) + (double)Math.pow(Math.abs(x.getY()-p.getY()), 2))));
+					minPtsNearestNeighbours.put(x,Math.sqrt((double)((double)Math.pow(Math.abs(x.getX()-p.getX()), 2) + (double)Math.pow(Math.abs(x.getY()-p.getY()), 2))));
+				}
+				else{
+					Iterator<Map.Entry<Point, Double>> itr = minPtsNearestNeighbours2.entrySet().iterator();
+					while(itr.hasNext()){
+						Map.Entry<Point, Double> l = itr.next();
+						if(l.getValue() > Math.sqrt((double)((double)Math.pow(Math.abs(x.getX()-p.getX()), 2) + (double)Math.pow(Math.abs(x.getY()-p.getY()), 2)))){
+							minPtsNearestNeighbours2.remove(getFarestMinPtsNearestNeighbour().getKey());
+							minPtsNearestNeighbours2.put(x, Math.sqrt((double)((double)Math.pow(Math.abs(x.getX()-p.getX()), 2) + (double)Math.pow(Math.abs(x.getY()-p.getY()), 2))));
+							continue outerLoop;
+						}
+					}
+				}
+			}
+		}
+	
+		minPtsNearestNeighbours = minPtsNearestNeighbours2;
+		
+		return getFarestMinPtsNearestNeighbour();
+	}
+	
+	private Entry<Point, Double> getFarestMinPtsNearestNeighbour(){
+		Entry<Point, Double> farestElement = minPtsNearestNeighbours2.entrySet().iterator().next();
+		
+		for(Entry<Point, Double> l : minPtsNearestNeighbours2.entrySet()){
+			if(l.getValue() > farestElement.getValue())
+				farestElement = l;
+		}
+		
+		return farestElement;
+	}
+	
+	public void clearMinPtsNearestNeighboursList(){
+		minPtsNearestNeighbours.clear();
+		minPtsNearestNeighbours2.clear();
 	}
 	
 }

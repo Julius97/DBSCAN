@@ -9,7 +9,7 @@ public class Main {
 		
 		Frame frame = new Frame(dbscan);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.setSize(1000, 600);
+		frame.setSize(1800, 600);
 		frame.setVisible(true);
 		frame.setResizable(false);
 		
